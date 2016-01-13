@@ -19,7 +19,6 @@ int myfs_create(const char *filesystemname, int max_size){
     superblock.max_size = max_size;
 
     superblock.inode_total = max_size / BLOCK_SIZE;
-//	printf("superblock:%d",superblock.inode_total);
     superblock.block_total = max_size / BLOCK_SIZE;
     
 		
@@ -29,9 +28,7 @@ int myfs_create(const char *filesystemname, int max_size){
 	}	
 	//sizeof change to 
 	superblock.inode_count = superblock.inode_total * (sizeof(inode_t));
-	//printf("superblock.inode_count:%d\n",superblock.inode_count);
     superblock.block_count = superblock.block_total * BLOCK_SIZE;
-	//printf("superblock.block_count:%d\n",superblock.block_count);
 
     superblock.inode_init = sizeof(superblock_t);
     superblock.block_init = superblock.inode_init + superblock.inode_count;
@@ -72,11 +69,7 @@ int myfs_file_open(const char *filename){
 	for(int i=0;i<superblock.inode_total;i++ ){
 		fread(&inode, sizeof(inode_t), 1, fptr);
 		if(inode.dirty){
-			//printf("i:%d",i);
-			//printf("filename:%s\n",filename);
-			//printf("inode.name:%s\n",inode.name);
 			if(!strcmp(filename,inode.name)){
-				//printf("i:%d",i);
 				printf("open file success\n");
 				return i;
 			}
@@ -86,7 +79,24 @@ int myfs_file_open(const char *filename){
 	return -1;
 
 }
-int myfs_file_close(int fd);
+int myfs_file_close(int fd){
+	printf("file close\n");
+	if(!fptr){
+		printf("err");
+		return -1;
+	}
+	fseek(fptr,0,SEEK_SET);
+	superblock_t superblock = {0};
+    inode_t inode ;
+	fread(&superblock, sizeof(superblock_t)+sizeof(inode_t)*fd, 1, fptr);
+	fread(&inode, sizeof(inode_t), 1, fptr);
+	if(!inode.dirty){
+		printf("File have not been opend\n");
+		return -1;
+	}
+	else
+		return 0;
+}
 int myfs_file_create(const char *filename){
 	printf("file create\n");
 	if(!fptr){
@@ -100,7 +110,6 @@ int myfs_file_create(const char *filename){
 	//unsigned int index_value = 0;
 	//printf("superblock:%d",superblock.inode_total);
 	for(int i=0;i<superblock.inode_total;i++ ){
-		//printf("i:%d\n",i);
 		fread(&inode, sizeof(inode_t), 1, fptr);
 		if(inode.dirty){
 			if(!strcmp(filename,inode.name)){
@@ -113,20 +122,11 @@ int myfs_file_create(const char *filename){
 	for(int i=0;i<superblock.inode_total;i++ ){
 		//printf("i:%d\n",i);
 		fread(&inode, sizeof(inode_t), 1, fptr);
-		//printf("inode:%d\n",inode.dirty);
 		if(!inode.dirty){
-			//printf("i will return 0\n");
 			inode.dirty = true;
-			//printf("inode:%d\n",inode.dirty);
 			strncpy(inode.name,filename,strlen(filename));
-	//		fseek(fptr, superblock.block_init+sizeof(block_t)*i, SEEK_SET );
-	//fseek(fptr, superblock.block_init+BLOCK_SIZE*i, SEEK_SET );
-	//printf("i:%d fptr:%p\n",i,fptr);
 			inode.block_offset=superblock.block_init+BLOCK_SIZE*i;
-			//inode.curfptr = fptr;
-	//printf("fptr:%p\n",inode.curfptr);
 			printf("create file success\n");
-		//	fseek(fptr,-sizeof(inode_t),SEEK_CUR);
 			fseek(fptr, superblock.inode_init+sizeof(inode_t)*i,SEEK_SET);
     		fwrite(&inode, sizeof(inode_t), 1, fptr);
 			return 0;
@@ -136,28 +136,41 @@ int myfs_file_create(const char *filename){
 	return -1;
 
 }
-int myfs_file_delete(const char *filename);
+int myfs_file_delete(const char *filename){
+	printf("file delete\n");
+	if(!fptr){
+		printf("err\n");
+		return -1;
+	}
+	char buf[BLOCK_SIZE]={};
+	fseek(fptr,0,SEEK_SET);
+	superblock_t superblock = {0};
+    inode_t inode ;
+	fread(&superblock, sizeof(superblock_t), 1, fptr);
+	for(int i=0;i<superblock.inode_total;i++ ){
+		fread(&inode, sizeof(inode_t), 1, fptr);
+		if(inode.dirty){
+			if(!strcmp(filename,inode.name)){
+				fseek(fptr,superblock.block_init+i*sizeof(block_t),SEEK_SET);
+				fwrite(buf, sizeof(char), BLOCK_SIZE, fptr);
+				inode.dirty = false;
+				strncpy(inode.name,"",0);
+				inode.block_offset=0;
+				fseek(fptr,superblock.inode_init+sizeof(inode_t)*i, SEEK_SET );
+			    fwrite(&inode, sizeof(inode_t), 1, fptr);
+				return 0;
+			}
+		}
+	}
+
+}
 int myfs_file_read(int fd, char *buffer, int count){
 	char buf[BLOCK_SIZE];
 	fseek(fptr,0,SEEK_SET);
 	superblock_t superblock = {0};
 	fread(&superblock, sizeof(superblock_t), 1, fptr);
-	//printf("i still live\n");
-	//printf("fd:%d\n",fd);
-	//printf("superblock.block_init:%d\n",superblock.block_init);
-	//fseek(fptr, superblock.inode_count, SEEK_CUR);
 	fseek(fptr, superblock.inode_count+sizeof(block_t)*fd, SEEK_CUR);
-	//fseek(fptr,BLOCK_SIZE*fd, superblock.block_init );
-    //inode_t inode ;
-	//fseek(fptr,sizeof(inode_t)*fd, superblock.inode_init );
-	//fread(&inode, sizeof(inode_t), 1, fptr);
-	//fseek(fptr,sizeof(inode_t)*fd, superblock.inode_init );
-	
-	//fptr=inode.curfptr;
-	//printf("i still live\n");
 	fread(buf, sizeof(char), count, fptr);
-	//printf("buffer:%s",buf);
-	//inode.curfptr=fptr;
 	strncpy(buffer,buf,strlen(buf));
 	printf("read file success\n");
 	return 0;
