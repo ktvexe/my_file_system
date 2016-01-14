@@ -6,7 +6,6 @@
 FILE *fptr = NULL;
 
 int myfs_create(const char *filesystemname, int max_size){
-	printf("create\n");
 	if(!(fptr = fopen(filesystemname,"wb+"))){
 		printf("Open file failed");
 		return -1;
@@ -26,7 +25,6 @@ int myfs_create(const char *filesystemname, int max_size){
 		inode[i].index = i;
 		inode[i].dirty =false;
 	}	
-	//sizeof change to 
 	superblock.inode_count = superblock.inode_total * (sizeof(inode_t));
     superblock.block_count = superblock.block_total * BLOCK_SIZE;
 
@@ -37,9 +35,7 @@ int myfs_create(const char *filesystemname, int max_size){
 	fwrite(&superblock, sizeof(superblock_t), 1, fptr);
     fwrite(inode, sizeof(inode_t), superblock.inode_total, fptr);
     fwrite(block, sizeof(block_t), superblock.block_total, fptr);
-    //fwrite(inode_bitmap, sizeof(uint), superblock.inode_bitmap_count, fptr);
-    //fwrite(block_bitmap, sizeof(uint), superblock.block_bitmap_count, fptr);
-    //fclose(fptr);
+	printf("Create file system successful\n");
 	
 	return 0;
 }
@@ -48,6 +44,7 @@ int myfs_destroy(const char *filesystemname){
 	if(remove(filesystemname)){
 		return -1;
 	}
+	printf("Destroy file system successful\n");
 	return 0;
 }
 
@@ -63,9 +60,6 @@ int myfs_file_open(const char *filename){
 	superblock_t superblock = {0};
     inode_t inode ;
 	fread(&superblock, sizeof(superblock_t), 1, fptr);
-	//printf("superblock:%d",superblock.inode_total);
-	//unsigned int index_value = 0;
-	//unsigned int max_index = 0;
 	for(int i=0;i<superblock.inode_total;i++ ){
 		fread(&inode, sizeof(inode_t), 1, fptr);
 		if(inode.dirty){
@@ -107,8 +101,6 @@ int myfs_file_create(const char *filename){
 	superblock_t superblock = {0};
     inode_t inode ;
 	fread(&superblock, sizeof(superblock_t), 1, fptr);
-	//unsigned int index_value = 0;
-	//printf("superblock:%d",superblock.inode_total);
 	for(int i=0;i<superblock.inode_total;i++ ){
 		fread(&inode, sizeof(inode_t), 1, fptr);
 		if(inode.dirty){
@@ -120,7 +112,6 @@ int myfs_file_create(const char *filename){
 	}
 	fseek(fptr,superblock.inode_init,SEEK_SET);
 	for(int i=0;i<superblock.inode_total;i++ ){
-		//printf("i:%d\n",i);
 		fread(&inode, sizeof(inode_t), 1, fptr);
 		if(!inode.dirty){
 			inode.dirty = true;
@@ -181,17 +172,11 @@ int myfs_file_write(int fd, char *buffer, int count){
 	superblock_t superblock = {0};
     inode_t inode ;
 	fread(&superblock, sizeof(superblock_t), 1, fptr);
-	//fseek(fptr,sizeof(inode_t)*fd, superblock.inode_init );
 	fseek(fptr,superblock.inode_init+sizeof(inode_t)*fd, SEEK_SET );
 	fread(&inode, sizeof(inode_t), 1, fptr);
-	//fseek(fptr, superblock.block_init+BLOCK_SIZE*fd, SEEK_SET );
 	fseek(fptr, inode.block_offset, SEEK_SET );
-//	printf("fd:%d fptr:%p inode:%p",fd,fptr,inode.curfptr);
-	//fptr=inode.curfptr;
-	//printf("fptr:%p",fptr);
 	fwrite(buffer, sizeof(char), count, fptr);
 	inode.block_offset += count*sizeof(char);
-	//inode.curfptr=fptr;
 	fseek(fptr,superblock.inode_init+sizeof(inode_t)*fd, SEEK_SET );
     fwrite(&inode, sizeof(inode_t), 1, fptr);
 	printf("write file success\n");
